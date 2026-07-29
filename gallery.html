@@ -99,16 +99,18 @@
 </div>
 
 <script>
-// Edit this list to add/remove/replace images. Each needs a unique id.
+// Edit this list to add/remove/replace images.
+// Put your image files in an "images" folder in this same repo,
+// then just reference the filename here — no external links needed.
 const IMAGES = [
   { id: 'img1', src: 'https://raw.githubusercontent.com/nradhakrishnap/Gallery/main/generated_image_1757692592919.png' },
-  { id: 'img2', src: 'https://placehold.co/600x400?text=Image+2' },
-  { id: 'img3', src: 'https://placehold.co/600x400?text=Image+3' }
+  { id: 'img2', src: 'images/photo2.jpg' },
+  { id: 'img3', src: 'images/photo3.jpg' }
 ];
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgJ7omhlT9_kX-ffSwW4aeum-h3FaS2ZZd1kz5NK-Tuxnlrz7Hra1wl_ZMiwVckf9TCg/exec';
 
-function getDeviceInfo() {
+async function getDeviceInfo() {
   const ua = navigator.userAgent;
   let os = 'Unknown OS';
   if (/android/i.test(ua)) os = 'Android';
@@ -123,7 +125,19 @@ function getDeviceInfo() {
   else if (/safari/i.test(ua)) browser = 'Safari';
   else if (/firefox/i.test(ua)) browser = 'Firefox';
 
-  return `${os}, ${browser}`;
+  let model = '';
+  try {
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      const hints = await navigator.userAgentData.getHighEntropyValues(['model']);
+      if (hints.model) model = hints.model;
+    }
+  } catch (e) {
+    // Client Hints not supported on this browser, skip silently
+  }
+
+  const screenSize = `${window.screen.width}x${window.screen.height}`;
+
+  return `${os}${model ? ' (' + model + ')' : ''}, ${browser}, screen ${screenSize}`;
 }
 
 async function getLocation() {
@@ -137,7 +151,7 @@ async function getLocation() {
 }
 
 async function logEvent(action, imageId, comment) {
-  const device = getDeviceInfo();
+  const device = await getDeviceInfo();
   const location = await getLocation();
   try {
     await fetch(SCRIPT_URL, {
