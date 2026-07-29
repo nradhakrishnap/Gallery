@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shared Gallery</title>
+<style>
+  :root{
+    --bg:#faf9f7; --card:#ffffff; --border:#e6e3dd; --text:#1f1e1c;
+    --muted:#6b6a66; --accent:#3c3489; --accent-bg:#eeedfe;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg); color:var(--text); padding:1.5rem;
+  }
+  .wrap{max-width:640px; margin:0 auto;}
+  h1{font-size:20px; font-weight:600; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:14px; margin:0 0 1.25rem;}
+
+  .notice{
+    display:flex; gap:10px; align-items:flex-start;
+    background:var(--accent-bg); border:1px solid #cecbf6; color:#26215c;
+    border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:1.5rem;
+  }
+  .notice b{display:block; margin-bottom:2px;}
+
+  .gate{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:20px; margin-bottom:1.5rem;
+  }
+  .gate p{margin:0 0 10px; font-size:14px; color:var(--muted);}
+  .gate-row{display:flex; gap:8px;}
+  input[type=text]{
+    flex:1; padding:10px 12px; border:1px solid var(--border); border-radius:8px;
+    font-size:14px; font-family:inherit;
+  }
+  button{
+    padding:10px 16px; border-radius:8px; border:1px solid var(--accent);
+    background:var(--accent); color:#fff; font-size:14px; cursor:pointer; font-family:inherit;
+  }
+  button:hover{opacity:0.9;}
+  button:disabled{opacity:0.5; cursor:not-allowed;}
+
+  .status{font-size:13px; color:var(--muted); margin-top:8px;}
+
+  .grid{display:none; flex-direction:column; gap:20px;}
+  .grid.show{display:flex;}
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden;
+  }
+  .card img{width:100%; max-height:420px; object-fit:cover; display:block; background:#eee;}
+  .card-body{padding:12px 14px;}
+
+  .reactions{display:flex; gap:8px; margin-bottom:10px;}
+  .reactions button{
+    background:var(--bg); color:var(--text); font-size:13px;
+    display:flex; align-items:center; gap:6px; padding:6px 12px;
+  }
+  .reactions button.active{background:var(--accent-bg); border-color:var(--accent);}
+
+  .comments{border-top:1px solid var(--border); padding-top:10px;}
+  .comment-row{display:flex; gap:8px;}
+  .comment-row input{font-size:13px; padding:8px 10px;}
+  .comment-row button{padding:8px 12px; font-size:13px;}
+  .comment-list{margin-top:8px; display:flex; flex-direction:column; gap:6px;}
+  .comment-item{
+    background:var(--bg); border-radius:8px; padding:6px 10px;
+    font-size:13px; line-height:1.4;
+  }
+  .comment-empty{color:var(--muted); font-size:12px; margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Shared gallery</h1>
+  <p class="sub">A few images shared with you.</p>
+
+  <div class="notice">
+    <div>
+      <b>Your viewing info is logged.</b>
+      When you view this page, the owner can see your approximate device type, browser, general location (city/country level, from your IP), the time, and how many times you've viewed it. No name or exact address is collected.
+    </div>
+  </div>
+
+  <div class="gate" id="gate">
+    <p>Tap below to view the images:</p>
+    <div class="gate-row">
+      <button id="viewBtn">View images</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+</div>
+
+<script>
+// Edit this list to add/remove/replace images. Each needs a unique id.
+const IMAGES = [
+  { id: 'img1', src: 'https://placehold.co/600x400?text=Image+1' },
+  { id: 'img2', src: 'https://placehold.co/600x400?text=Image+2' },
+  { id: 'img3', src: 'https://placehold.co/600x400?text=Image+3' }
+];
+
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgJ7omhlT9_kX-ffSwW4aeum-h3FaS2ZZd1kz5NK-Tuxnlrz7Hra1wl_ZMiwVckf9TCg/exec';
+
+function getDeviceInfo() {
+  const ua = navigator.userAgent;
+  let os = 'Unknown OS';
+  if (/android/i.test(ua)) os = 'Android';
+  else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+  else if (/windows/i.test(ua)) os = 'Windows';
+  else if (/mac os/i.test(ua)) os = 'Mac';
+  else if (/linux/i.test(ua)) os = 'Linux';
+
+  let browser = 'Unknown browser';
+  if (/edg/i.test(ua)) browser = 'Edge';
+  else if (/chrome/i.test(ua)) browser = 'Chrome';
+  else if (/safari/i.test(ua)) browser = 'Safari';
+  else if (/firefox/i.test(ua)) browser = 'Firefox';
+
+  return `${os}, ${browser}`;
+}
+
+async function getLocation() {
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const data = await res.json();
+    return `${data.city || 'Unknown city'}, ${data.country_name || 'Unknown country'}`;
+  } catch (e) {
+    return 'Unknown location';
+  }
+}
+
+async function logEvent(action, imageId, comment) {
+  const device = getDeviceInfo();
+  const location = await getLocation();
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ device, location, action, imageId: imageId || '', comment: comment || '' })
+    });
+  } catch (e) {
+    console.error('Could not log event', e);
+  }
+}
+
+function buildGallery() {
+  const grid = document.getElementById('grid');
+  IMAGES.forEach(img => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <img src="${img.src}" alt="${img.id}">
+      <div class="card-body">
+        <div class="reactions">
+          <button class="likeBtn" data-id="${img.id}">👍 <span class="likeCount">Like</span></button>
+          <button class="dislikeBtn" data-id="${img.id}">👎 <span class="dislikeCount">Dislike</span></button>
+        </div>
+        <div class="comments">
+          <div class="comment-row">
+            <input type="text" class="commentInput" data-id="${img.id}" placeholder="Add a comment">
+            <button class="commentBtn" data-id="${img.id}">Post</button>
+          </div>
+          <div class="comment-list" data-list="${img.id}"></div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  const reacted = {};
+
+  grid.querySelectorAll('.likeBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (reacted[id]) return;
+      reacted[id] = 'like';
+      btn.classList.add('active');
+      await logEvent('like', id);
+    });
+  });
+
+  grid.querySelectorAll('.dislikeBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (reacted[id]) return;
+      reacted[id] = 'dislike';
+      btn.classList.add('active');
+      await logEvent('dislike', id);
+    });
+  });
+
+  grid.querySelectorAll('.commentBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const input = grid.querySelector(`.commentInput[data-id="${id}"]`);
+      const text = input.value.trim();
+      if (!text) return;
+      btn.disabled = true;
+      await logEvent('comment', id, text);
+      const list = grid.querySelector(`.comment-list[data-list="${id}"]`);
+      const item = document.createElement('div');
+      item.className = 'comment-item';
+      item.textContent = text;
+      list.appendChild(item);
+      input.value = '';
+      btn.disabled = false;
+    });
+  });
+}
+
+document.getElementById('viewBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('viewBtn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.textContent = 'Logging your view...';
+  await logEvent('view');
+  status.textContent = '';
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('grid').classList.add('show');
+});
+
+buildGallery();
+</script>
+</body>
+</html>
