@@ -140,17 +140,28 @@ async function getDeviceInfo() {
   return `${os}${model ? ' (' + model + ')' : ''}, ${browser}, screen ${screenSize}`;
 }
 
+async function getIp() {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    return data.ip || 'Unknown IP';
+  } catch (e) {
+    console.error('IP lookup failed', e);
+    return 'Unknown IP';
+  }
+}
+
 async function getLocationAndIp() {
+  const ip = await getIp();
+  let location = 'Unknown location';
   try {
     const res = await fetch('https://ipapi.co/json/');
     const data = await res.json();
-    return {
-      location: `${data.city || 'Unknown city'}, ${data.country_name || 'Unknown country'}`,
-      ip: data.ip || 'Unknown IP'
-    };
+    location = `${data.city || 'Unknown city'}, ${data.country_name || 'Unknown country'}`;
   } catch (e) {
-    return { location: 'Unknown location', ip: 'Unknown IP' };
+    console.error('Location lookup failed', e);
   }
+  return { location, ip };
 }
 
 async function logEvent(action, imageId, comment) {
