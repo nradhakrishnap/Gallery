@@ -188,12 +188,31 @@
 </div>
 
 <script>
-// Edit this list to add/remove/replace images.
-const IMAGES = [
-  { id: 'img1', src: 'https://raw.githubusercontent.com/nradhakrishnap/Gallery/main/generated_image_1757692592919.png' },
-  { id: 'img2', src: 'images/photo2.jpg' },
-  { id: 'img3', src: 'images/photo3.jpg' }
-];
+// Photos are now picked up automatically from the "images" folder in your repo.
+// Just upload a photo there and refresh the page — no editing needed here.
+const REPO_OWNER = 'nradhakrishnap';
+const REPO_NAME = 'Gallery';
+const IMAGES_FOLDER = 'images';
+
+async function fetchImages() {
+  const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${IMAGES_FOLDER}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const exts = /\.(jpe?g|png|gif|webp)$/i;
+    return data
+      .filter(item => item.type === 'file' && exts.test(item.name))
+      .map(item => ({
+        id: item.name.replace(/[^a-zA-Z0-9]/g, '_'),
+        src: item.download_url,
+        name: item.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ')
+      }));
+  } catch (e) {
+    console.error('Could not load images from repo', e);
+    return [];
+  }
+}
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgJ7omhlT9_kX-ffSwW4aeum-h3FaS2ZZd1kz5NK-Tuxnlrz7Hra1wl_ZMiwVckf9TCg/exec';
 
@@ -270,15 +289,22 @@ async function logEvent(action, imageId, comment) {
   }
 }
 
-function buildGallery() {
+async function buildGallery() {
   const grid = document.getElementById('grid');
-  IMAGES.forEach((img, i) => {
+  const IMAGES = await fetchImages();
+
+  if (!IMAGES.length) {
+    grid.innerHTML = `<p style="text-align:center; color:var(--muted-rose); font-style:italic;">No pages yet — add a photo to the "images" folder in the repo and refresh.</p>`;
+    return;
+  }
+
+  IMAGES.forEach((img) => {
     const entry = document.createElement('div');
     entry.className = 'entry';
     entry.innerHTML = `
-      <img src="${img.src}" alt="${img.id}">
+      <img src="${img.src}" alt="${img.name}">
       <div class="entry-body">
-        <div class="entry-caption">entry ${i + 1}</div>
+        <div class="entry-caption">${img.name}</div>
         <div class="reactions">
           <button class="likeBtn" data-id="${img.id}">🤍 This is me</button>
           <button class="dislikeBtn" data-id="${img.id}">🖤 Not quite</button>
