@@ -3,105 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shared Gallery</title>
+<title>Diary of Feelings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=Lora:ital,wght@0,400;0,500;1,400&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#faf9f7; --card:#ffffff; --border:#e6e3dd; --text:#1f1e1c;
-    --muted:#6b6a66; --accent:#3c3489; --accent-bg:#eeedfe;
+    --wine:#2b1620;
+    --wine-deep:#1c0f16;
+    --paper:#fbf3ea;
+    --rose:#d88c9a;
+    --gold:#cda45e;
+    --ink:#3a2430;
+    --cream:#f3e6d8;
+    --muted-rose:#b98a94;
   }
   *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
   body{
-    margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background:var(--bg); color:var(--text); padding:1.5rem;
+    font-family:'Lora', serif;
+    background:var(--wine);
+    color:var(--cream);
+    min-height:100vh;
   }
-  .wrap{max-width:640px; margin:0 auto;}
-  h1{font-size:20px; font-weight:600; margin:0 0 4px;}
-  .sub{color:var(--muted); font-size:14px; margin:0 0 1.25rem;}
+  body.locked{overflow:hidden; height:100vh;}
 
-  .notice{
-    display:flex; gap:10px; align-items:flex-start;
-    background:var(--accent-bg); border:1px solid #cecbf6; color:#26215c;
-    border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:1.5rem;
-  }
-  .notice b{display:block; margin-bottom:2px;}
+  h1,h2{font-family:'Playfair Display', serif; font-weight:600; margin:0;}
 
+  /* ---------- GATE ---------- */
   .gate{
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    padding:20px; margin-bottom:1.5rem;
+    position:fixed; inset:0; z-index:50;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:
+      radial-gradient(ellipse at 50% 40%, #3a1f2b 0%, var(--wine) 55%, var(--wine-deep) 100%);
+    text-align:center; padding:2rem;
+    clip-path: circle(150% at 50% 50%);
+    transition: clip-path 1.1s cubic-bezier(.65,0,.35,1);
   }
-  .gate p{margin:0 0 10px; font-size:14px; color:var(--muted);}
-  .gate-row{display:flex; gap:8px;}
-  input[type=text]{
-    flex:1; padding:10px 12px; border:1px solid var(--border); border-radius:8px;
-    font-size:14px; font-family:inherit;
+  .gate.entering{clip-path: circle(0% at 50% 50%);}
+  .gate.hidden{display:none;}
+
+  .gate-eyebrow{
+    font-family:'Caveat', cursive; font-size:20px; color:var(--muted-rose);
+    letter-spacing:0.02em; margin-bottom:6px;
   }
-  button{
-    padding:10px 16px; border-radius:8px; border:1px solid var(--accent);
-    background:var(--accent); color:#fff; font-size:14px; cursor:pointer; font-family:inherit;
+  .gate-title{
+    font-size:clamp(30px,6vw,44px); color:var(--paper); font-style:italic;
+    margin-bottom:10px;
   }
-  button:hover{opacity:0.9;}
-  button:disabled{opacity:0.5; cursor:not-allowed;}
-
-  .status{font-size:13px; color:var(--muted); margin-top:8px;}
-
-  .grid{display:none; flex-direction:column; gap:20px;}
-  .grid.show{display:flex;}
-
-  .card{
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    overflow:hidden;
+  .gate-sub{
+    font-size:15px; color:var(--muted-rose); max-width:340px; line-height:1.6;
+    margin-bottom:2.75rem;
   }
-  .card img{width:100%; max-height:420px; object-fit:cover; display:block; background:#eee;}
-  .card-body{padding:12px 14px;}
 
-  .reactions{display:flex; gap:8px; margin-bottom:10px;}
+  .heart-btn{
+    position:relative; width:96px; height:96px; border:none; background:none;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    margin-bottom:1.1rem;
+  }
+  .heart-btn svg{
+    width:56px; height:56px; filter:drop-shadow(0 0 14px rgba(205,164,94,0.55));
+    animation: beat 2.4s ease-in-out infinite;
+  }
+  .heart-ring{
+    position:absolute; inset:0; border-radius:50%;
+    border:1px solid rgba(216,140,154,0.4);
+    animation: ring 2.4s ease-in-out infinite;
+  }
+  @keyframes beat{
+    0%, 100%{ transform:scale(1); }
+    15%{ transform:scale(1.12); }
+    30%{ transform:scale(0.98); }
+    45%{ transform:scale(1.08); }
+  }
+  @keyframes ring{
+    0%{ transform:scale(0.85); opacity:0.7; }
+    70%{ transform:scale(1.35); opacity:0; }
+    100%{ transform:scale(1.35); opacity:0; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .heart-btn svg, .heart-ring{ animation:none; }
+    .gate{ transition: opacity 0.5s ease; }
+    .gate.entering{ clip-path: circle(150% at 50% 50%); opacity:0; }
+  }
+
+  .enter-label{
+    font-family:'Caveat', cursive; font-size:19px; color:var(--gold);
+  }
+
+  .gate-notice{
+    margin-top:2.75rem; max-width:360px; font-size:12.5px; line-height:1.6;
+    color:rgba(243,230,216,0.55); border-top:1px solid rgba(216,140,154,0.25);
+    padding-top:1rem;
+  }
+  .gate-notice b{color:rgba(243,230,216,0.8); font-weight:600;}
+
+  /* ---------- DIARY ---------- */
+  .diary{
+    max-width:600px; margin:0 auto; padding:3rem 1.5rem 4rem;
+  }
+  .diary-header{ text-align:center; margin-bottom:2.5rem; }
+  .diary-header .gate-eyebrow{ color:var(--rose); }
+  .diary-header h1{ font-size:clamp(28px,5vw,36px); color:var(--paper); font-style:italic; }
+  .diary-header .rule{
+    width:60px; height:1px; background:var(--gold); margin:14px auto 0; opacity:0.6;
+  }
+
+  .entry{
+    background:var(--paper); color:var(--ink); border-radius:4px;
+    margin-bottom:2.25rem; overflow:hidden;
+    box-shadow:0 18px 40px rgba(0,0,0,0.35);
+    position:relative;
+  }
+  .entry::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:6px;
+    background:linear-gradient(var(--rose), var(--gold));
+  }
+  .entry img{ width:100%; display:block; max-height:440px; object-fit:cover; }
+  .entry-body{ padding:18px 22px 20px 26px; }
+  .entry-caption{
+    font-family:'Caveat', cursive; font-size:19px; color:var(--muted-rose);
+    margin-bottom:14px;
+  }
+
+  .reactions{ display:flex; gap:10px; margin-bottom:16px; }
   .reactions button{
-    background:var(--bg); color:var(--text); font-size:13px;
-    display:flex; align-items:center; gap:6px; padding:6px 12px;
+    font-family:'Lora', serif; font-size:13.5px; padding:7px 14px; border-radius:20px;
+    border:1px solid rgba(58,36,48,0.18); background:transparent; color:var(--ink);
+    cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.15s ease;
   }
-  .reactions button.active{background:var(--accent-bg); border-color:var(--accent);}
+  .reactions button:hover{ border-color:var(--rose); }
+  .reactions button.active{ background:var(--rose); border-color:var(--rose); color:#fff; }
+  .reactions button:disabled{ cursor:default; }
 
-  .comments{border-top:1px solid var(--border); padding-top:10px;}
-  .comment-row{display:flex; gap:8px;}
-  .comment-row input{font-size:13px; padding:8px 10px;}
-  .comment-row button{padding:8px 12px; font-size:13px;}
-  .comment-list{margin-top:8px; display:flex; flex-direction:column; gap:6px;}
-  .comment-item{
-    background:var(--bg); border-radius:8px; padding:6px 10px;
-    font-size:13px; line-height:1.4;
+  .notes{ border-top:1px solid rgba(58,36,48,0.12); padding-top:14px; }
+  .notes-label{
+    font-family:'Caveat', cursive; font-size:16px; color:var(--muted-rose); margin-bottom:8px;
   }
-  .comment-empty{color:var(--muted); font-size:12px; margin-top:6px;}
+  .note-row{ display:flex; gap:8px; }
+  .note-row input{
+    flex:1; padding:9px 12px; border-radius:8px; border:1px solid rgba(58,36,48,0.18);
+    font-family:'Lora', serif; font-size:13.5px; background:#fff;
+  }
+  .note-row button{
+    padding:9px 16px; border-radius:8px; border:none; background:var(--ink); color:var(--paper);
+    font-family:'Lora', serif; font-size:13px; cursor:pointer;
+  }
+  .note-row button:disabled{ opacity:0.5; }
+  .note-list{ margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .note-item{
+    background:rgba(216,140,154,0.12); border-radius:8px; padding:7px 11px;
+    font-size:13px; line-height:1.5; font-style:italic;
+  }
+
+  .status{ font-size:13px; color:var(--muted-rose); margin-top:8px; min-height:16px; }
 </style>
 </head>
-<body>
-<div class="wrap">
+<body class="locked">
 
-  <h1>Shared gallery</h1>
-  <p class="sub">A few images shared with you.</p>
+<div class="gate" id="gate">
+  <div class="gate-eyebrow">for the people closest to me</div>
+  <h1 class="gate-title">Diary of Feelings</h1>
+  <p class="gate-sub">A few pages I don't show most people. Step in gently.</p>
 
-  <div class="notice">
-    <div>
-      <b>Your viewing info is logged.</b>
-      When you view this page, the owner can see your device type, browser, screen size, IP address, approximate location (city/country), the time, and how many times you've viewed it. This browser is also given a random ID (stored locally) so repeat visits from it can be recognized. No name is collected.
-    </div>
+  <button class="heart-btn" id="viewBtn" aria-label="Enter">
+    <span class="heart-ring"></span>
+    <svg viewBox="0 0 24 24" fill="var(--rose)"><path d="M12 21s-7.5-4.6-10-9.3C0.3 7.9 2.2 4 6 4c2.1 0 3.6 1.1 4.5 2.4C11.4 5.1 12.9 4 15 4c3.8 0 5.7 3.9 4 7.7C19.5 16.4 12 21 12 21z"/></svg>
+  </button>
+  <div class="enter-label">tap the heart to step inside</div>
+
+  <div class="gate-notice">
+    <b>Your viewing info is logged.</b> When you enter, the owner can see your device type, browser, screen size, IP address, approximate location, the time, and how many times you've visited. A random ID is also stored in this browser to recognize you if you return. No name is collected.
   </div>
+</div>
 
-  <div class="gate" id="gate">
-    <p>Tap below to view the images:</p>
-    <div class="gate-row">
-      <button id="viewBtn">View images</button>
-    </div>
-    <div class="status" id="status"></div>
+<div class="diary" id="diaryContent">
+  <div class="diary-header">
+    <div class="gate-eyebrow">you made it</div>
+    <h1>a few pages, just for you</h1>
+    <div class="rule"></div>
   </div>
-
-  <div class="grid" id="grid"></div>
-
+  <div id="grid"></div>
+  <div class="status" id="status" style="text-align:center;"></div>
 </div>
 
 <script>
 // Edit this list to add/remove/replace images.
-// Put your image files in an "images" folder in this same repo,
-// then just reference the filename here — no external links needed.
 const IMAGES = [
   { id: 'img1', src: 'https://raw.githubusercontent.com/nradhakrishnap/Gallery/main/generated_image_1757692592919.png' },
   { id: 'img2', src: 'images/photo2.jpg' },
@@ -131,12 +218,9 @@ async function getDeviceInfo() {
       const hints = await navigator.userAgentData.getHighEntropyValues(['model']);
       if (hints.model) model = hints.model;
     }
-  } catch (e) {
-    // Client Hints not supported on this browser, skip silently
-  }
+  } catch (e) {}
 
   const screenSize = `${window.screen.width}x${window.screen.height}`;
-
   return `${os}${model ? ' (' + model + ')' : ''}, ${browser}, screen ${screenSize}`;
 }
 
@@ -155,7 +239,6 @@ async function getIp() {
     const data = await res.json();
     return data.ip || 'Unknown IP';
   } catch (e) {
-    console.error('IP lookup failed', e);
     return 'Unknown IP';
   }
 }
@@ -167,9 +250,7 @@ async function getLocationAndIp() {
     const res = await fetch('https://ipapi.co/json/');
     const data = await res.json();
     location = `${data.city || 'Unknown city'}, ${data.country_name || 'Unknown country'}`;
-  } catch (e) {
-    console.error('Location lookup failed', e);
-  }
+  } catch (e) {}
   return { location, ip };
 }
 
@@ -191,26 +272,28 @@ async function logEvent(action, imageId, comment) {
 
 function buildGallery() {
   const grid = document.getElementById('grid');
-  IMAGES.forEach(img => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
+  IMAGES.forEach((img, i) => {
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+    entry.innerHTML = `
       <img src="${img.src}" alt="${img.id}">
-      <div class="card-body">
+      <div class="entry-body">
+        <div class="entry-caption">entry ${i + 1}</div>
         <div class="reactions">
-          <button class="likeBtn" data-id="${img.id}">👍 <span class="likeCount">Like</span></button>
-          <button class="dislikeBtn" data-id="${img.id}">👎 <span class="dislikeCount">Dislike</span></button>
+          <button class="likeBtn" data-id="${img.id}">🤍 This is me</button>
+          <button class="dislikeBtn" data-id="${img.id}">🖤 Not quite</button>
         </div>
-        <div class="comments">
-          <div class="comment-row">
-            <input type="text" class="commentInput" data-id="${img.id}" placeholder="Add a comment">
-            <button class="commentBtn" data-id="${img.id}">Post</button>
+        <div class="notes">
+          <div class="notes-label">leave me a note</div>
+          <div class="note-row">
+            <input type="text" class="commentInput" data-id="${img.id}" placeholder="say something...">
+            <button class="commentBtn" data-id="${img.id}">Send</button>
           </div>
-          <div class="comment-list" data-list="${img.id}"></div>
+          <div class="note-list" data-list="${img.id}"></div>
         </div>
       </div>
     `;
-    grid.appendChild(card);
+    grid.appendChild(entry);
   });
 
   const reacted = {};
@@ -243,9 +326,9 @@ function buildGallery() {
       if (!text) return;
       btn.disabled = true;
       await logEvent('comment', id, text);
-      const list = grid.querySelector(`.comment-list[data-list="${id}"]`);
+      const list = grid.querySelector(`.note-list[data-list="${id}"]`);
       const item = document.createElement('div');
-      item.className = 'comment-item';
+      item.className = 'note-item';
       item.textContent = text;
       list.appendChild(item);
       input.value = '';
@@ -258,11 +341,16 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
   const btn = document.getElementById('viewBtn');
   const status = document.getElementById('status');
   btn.disabled = true;
-  status.textContent = 'Logging your view...';
+
+  const gate = document.getElementById('gate');
+  gate.classList.add('entering');
+
   await logEvent('view');
-  status.textContent = '';
-  document.getElementById('gate').style.display = 'none';
-  document.getElementById('grid').classList.add('show');
+
+  setTimeout(() => {
+    gate.classList.add('hidden');
+    document.body.classList.remove('locked');
+  }, 1150);
 });
 
 buildGallery();
