@@ -82,7 +82,7 @@
   <div class="notice">
     <div>
       <b>Your viewing info is logged.</b>
-      When you view this page, the owner can see your approximate device type, browser, general location (city/country level, from your IP), the time, and how many times you've viewed it. No name or exact address is collected.
+      When you view this page, the owner can see your device type, browser, screen size, IP address, approximate location (city/country), the time, and how many times you've viewed it. No name is collected.
     </div>
   </div>
 
@@ -140,25 +140,28 @@ async function getDeviceInfo() {
   return `${os}${model ? ' (' + model + ')' : ''}, ${browser}, screen ${screenSize}`;
 }
 
-async function getLocation() {
+async function getLocationAndIp() {
   try {
     const res = await fetch('https://ipapi.co/json/');
     const data = await res.json();
-    return `${data.city || 'Unknown city'}, ${data.country_name || 'Unknown country'}`;
+    return {
+      location: `${data.city || 'Unknown city'}, ${data.country_name || 'Unknown country'}`,
+      ip: data.ip || 'Unknown IP'
+    };
   } catch (e) {
-    return 'Unknown location';
+    return { location: 'Unknown location', ip: 'Unknown IP' };
   }
 }
 
 async function logEvent(action, imageId, comment) {
   const device = await getDeviceInfo();
-  const location = await getLocation();
+  const { location, ip } = await getLocationAndIp();
   try {
     await fetch(SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ device, location, action, imageId: imageId || '', comment: comment || '' })
+      body: JSON.stringify({ device, location, ip, action, imageId: imageId || '', comment: comment || '' })
     });
   } catch (e) {
     console.error('Could not log event', e);
