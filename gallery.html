@@ -100,7 +100,7 @@
 
   /* ---------- DIARY ---------- */
   .diary{
-    max-width:600px; margin:0 auto; padding:3rem 1.5rem 4rem;
+    max-width:700px; margin:0 auto; padding:3rem 1.5rem 4rem;
   }
   .diary-header{ text-align:center; margin-bottom:2.5rem; }
   .diary-header .gate-eyebrow{ color:var(--rose); }
@@ -119,7 +119,51 @@
     content:''; position:absolute; left:0; top:0; bottom:0; width:6px;
     background:linear-gradient(var(--rose), var(--gold));
   }
-  .entry img{ width:100%; display:block; max-height:440px; object-fit:cover; }
+  .entry img{
+    display:block; max-width:100%; max-height:78vh; width:auto; height:auto;
+    object-fit:contain; cursor:zoom-in;
+  }
+  .image-wrap{
+    position:relative; display:flex; align-items:center; justify-content:center;
+    background:var(--wine-deep);
+  }
+
+  .img-nav-btn{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:42px; height:42px; border-radius:50%; border:none;
+    background:rgba(28,15,22,0.28); color:rgba(251,243,234,0.55);
+    font-size:18px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all 0.18s ease; backdrop-filter:blur(2px);
+  }
+  .img-nav-btn:hover, .img-nav-btn:focus-visible{
+    background:rgba(28,15,22,0.55); color:var(--paper); transform:translateY(-50%) scale(1.06);
+  }
+  .img-nav-btn:disabled{ opacity:0; pointer-events:none; }
+  .img-nav-btn.prev{ left:10px; }
+  .img-nav-btn.next{ right:10px; }
+
+  .img-page-indicator{
+    position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+    font-family:'Caveat', cursive; font-size:16px; color:rgba(251,243,234,0.85);
+    background:rgba(28,15,22,0.4); padding:2px 12px; border-radius:12px;
+    backdrop-filter:blur(2px);
+  }
+
+  .lightbox{
+    position:fixed; inset:0; z-index:100; background:rgba(12,6,9,0.92);
+    display:none; align-items:center; justify-content:center; padding:2rem;
+    cursor:zoom-out;
+  }
+  .lightbox.open{ display:flex; }
+  .lightbox img{
+    max-width:100%; max-height:100%; object-fit:contain;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6); border-radius:2px;
+  }
+  .lightbox-close{
+    position:absolute; top:18px; right:22px; width:38px; height:38px;
+    border-radius:50%; border:1px solid rgba(251,243,234,0.3); background:rgba(28,15,22,0.5);
+    color:var(--paper); font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
   .entry-body{ padding:18px 22px 20px 26px; }
   .entry-caption{
     font-family:'Caveat', cursive; font-size:19px; color:var(--muted-rose);
@@ -173,7 +217,7 @@
   <div class="enter-label">tap the heart to step inside</div>
 
   <div class="gate-notice">
-    <b>Welcome to my world of feelings.</b> When you enter, you experience the warmth of my feelings and dept....
+    <b>Your viewing info is logged.</b> When you enter, the owner can see your device type, browser, screen size, IP address, approximate location, the time, and how many times you've visited. A random ID is also stored in this browser to recognize you if you return. No name is collected.
   </div>
 </div>
 
@@ -185,6 +229,11 @@
   </div>
   <div id="grid"></div>
   <div class="status" id="status" style="text-align:center;"></div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+  <img src="" alt="" id="lightboxImg">
 </div>
 
 <script>
@@ -289,20 +338,22 @@ async function logEvent(action, imageId, comment) {
   }
 }
 
-async function buildGallery() {
+let IMAGES = [];
+let currentIndex = 0;
+const reacted = {};
+const localComments = {};
+
+function renderEntry(index) {
   const grid = document.getElementById('grid');
-  const IMAGES = await fetchImages();
-
-  if (!IMAGES.length) {
-    grid.innerHTML = `<p style="text-align:center; color:var(--muted-rose); font-style:italic;">No pages yet — add a photo to the "images" folder in the repo and refresh.</p>`;
-    return;
-  }
-
-  IMAGES.forEach((img) => {
-    const entry = document.createElement('div');
-    entry.className = 'entry';
-    entry.innerHTML = `
-      <img src="${img.src}" alt="${img.name}">
+  const img = IMAGES[index];
+  grid.innerHTML = `
+    <div class="entry">
+      <div class="image-wrap">
+        <img src="${img.src}" alt="${img.name}" id="mainImg">
+        <button class="img-nav-btn prev" id="prevBtn" aria-label="Previous">&#8592;</button>
+        <button class="img-nav-btn next" id="nextBtn" aria-label="Next">&#8594;</button>
+        ${IMAGES.length > 1 ? `<div class="img-page-indicator">${index + 1} / ${IMAGES.length}</div>` : ''}
+      </div>
       <div class="entry-body">
         <div class="entry-caption">${img.name}</div>
         <div class="reactions">
@@ -318,60 +369,110 @@ async function buildGallery() {
           <div class="note-list" data-list="${img.id}"></div>
         </div>
       </div>
-    `;
-    grid.appendChild(entry);
+    </div>
+  `;
+
+  const mainImg = grid.querySelector('#mainImg');
+  const prevBtn = grid.querySelector('#prevBtn');
+  const nextBtn = grid.querySelector('#nextBtn');
+  const likeBtn = grid.querySelector('.likeBtn');
+  const dislikeBtn = grid.querySelector('.dislikeBtn');
+  const commentInput = grid.querySelector('.commentInput');
+  const commentBtn = grid.querySelector('.commentBtn');
+  const noteList = grid.querySelector('.note-list');
+
+  prevBtn.disabled = (index === 0);
+  nextBtn.disabled = (index === IMAGES.length - 1);
+  prevBtn.addEventListener('click', () => goTo(currentIndex - 1));
+  nextBtn.addEventListener('click', () => goTo(currentIndex + 1));
+
+  mainImg.addEventListener('click', () => openLightbox(img.src, img.name));
+
+  if (reacted[img.id] === 'like') likeBtn.classList.add('active');
+  if (reacted[img.id] === 'dislike') dislikeBtn.classList.add('active');
+
+  (localComments[img.id] || []).forEach(text => {
+    const item = document.createElement('div');
+    item.className = 'note-item';
+    item.textContent = text;
+    noteList.appendChild(item);
   });
 
-  const reacted = {};
-
-  grid.querySelectorAll('.likeBtn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
-      if (reacted[id]) return;
-      reacted[id] = 'like';
-      btn.classList.add('active');
-      await logEvent('like', id);
-    });
+  likeBtn.addEventListener('click', async () => {
+    if (reacted[img.id]) return;
+    reacted[img.id] = 'like';
+    likeBtn.classList.add('active');
+    await logEvent('like', img.id);
   });
 
-  grid.querySelectorAll('.dislikeBtn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
-      if (reacted[id]) return;
-      reacted[id] = 'dislike';
-      btn.classList.add('active');
-      await logEvent('dislike', id);
-    });
+  dislikeBtn.addEventListener('click', async () => {
+    if (reacted[img.id]) return;
+    reacted[img.id] = 'dislike';
+    dislikeBtn.classList.add('active');
+    await logEvent('dislike', img.id);
   });
 
-  grid.querySelectorAll('.commentBtn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.id;
-      const input = grid.querySelector(`.commentInput[data-id="${id}"]`);
-      const text = input.value.trim();
-      if (!text) return;
-      btn.disabled = true;
-      await logEvent('comment', id, text);
-      const list = grid.querySelector(`.note-list[data-list="${id}"]`);
-      const item = document.createElement('div');
-      item.className = 'note-item';
-      item.textContent = text;
-      list.appendChild(item);
-      input.value = '';
-      btn.disabled = false;
-    });
+  commentBtn.addEventListener('click', async () => {
+    const text = commentInput.value.trim();
+    if (!text) return;
+    commentBtn.disabled = true;
+    await logEvent('comment', img.id, text);
+    localComments[img.id] = localComments[img.id] || [];
+    localComments[img.id].push(text);
+    const item = document.createElement('div');
+    item.className = 'note-item';
+    item.textContent = text;
+    noteList.appendChild(item);
+    commentInput.value = '';
+    commentBtn.disabled = false;
   });
+
+  logEvent('view', img.id);
+}
+
+function openLightbox(src, alt) {
+  const lightbox = document.getElementById('lightbox');
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxImg').alt = alt;
+  lightbox.classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+document.getElementById('lightbox').addEventListener('click', closeLightbox);
+document.getElementById('lightboxClose').addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeLightbox();
+});
+document.getElementById('lightboxImg').addEventListener('click', (e) => e.stopPropagation());
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeLightbox();
+});
+
+function goTo(index) {
+  if (index < 0 || index >= IMAGES.length) return;
+  currentIndex = index;
+  renderEntry(currentIndex);
+}
+
+async function buildGallery() {
+  IMAGES = await fetchImages();
+  const grid = document.getElementById('grid');
+
+  if (!IMAGES.length) {
+    grid.innerHTML = `<p style="text-align:center; color:var(--muted-rose); font-style:italic;">No pages yet — add a photo to the "images" folder in the repo and refresh.</p>`;
+  }
 }
 
 document.getElementById('viewBtn').addEventListener('click', async () => {
   const btn = document.getElementById('viewBtn');
-  const status = document.getElementById('status');
   btn.disabled = true;
 
   const gate = document.getElementById('gate');
   gate.classList.add('entering');
 
-  await logEvent('view');
+  await galleryReady;
+  if (IMAGES.length) renderEntry(currentIndex);
 
   setTimeout(() => {
     gate.classList.add('hidden');
@@ -379,7 +480,7 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
   }, 1150);
 });
 
-buildGallery();
+const galleryReady = buildGallery();
 </script>
 </body>
 </html>
